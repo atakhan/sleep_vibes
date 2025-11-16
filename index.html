@@ -70,26 +70,19 @@
         </div>
         <div id="animation-container"></div>
         <audio id="audio-player" loop></audio>
-        <button id="session-to-still-awake-btn" class="session-btn">Все еще не сплю</button>
+        <button id="session-center-btn" class="session-center-btn">⏸</button>
+        <button id="session-to-still-awake-btn" class="session-btn" style="display: none;">Все еще не сплю</button>
     </div>
 
     <!-- StillAwakeScreen -->
     <div id="still-awake-screen" class="screen">
         <div class="container">
             <h1>Вы все еще не спите?</h1>
-            <button id="still-awake-btn" class="primary-btn">Да, все еще не сплю</button>
-        </div>
-    </div>
-
-    <!-- TryAgainScreen -->
-    <div id="try-again-screen" class="screen">
-        <div class="container">
-            <h1>Попробуйте снова</h1>
             <div class="timer-container">
-                <div id="timer">20</div>
+                <div id="still-awake-timer">15</div>
                 <p>секунд до следующей попытки</p>
             </div>
-            <button id="try-again-btn" class="primary-btn">Попробовать снова</button>
+            <button id="still-awake-btn" class="primary-btn">Да, все еще не сплю</button>
         </div>
     </div>
 

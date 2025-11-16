@@ -20,6 +20,12 @@ class SessionScreen {
         const container = document.getElementById('animation-container');
         container.innerHTML = '';
         
+        // Скрываем кнопку "Все еще не сплю" в начале сессии
+        const stillAwakeBtn = document.getElementById('session-to-still-awake-btn');
+        if (stillAwakeBtn) {
+            stillAwakeBtn.style.display = 'none';
+        }
+        
         // Генерируем анимацию
         const animation = AnimationGenerator.generate(animationType, temperature);
         this.animationElement = animation.element;
@@ -365,7 +371,20 @@ class SessionScreen {
 
     static handleSessionEnd() {
         // Сессия завершена автоматически
-        // Можно добавить логику перехода на другой экран
-        console.log('Сессия завершена');
+        // Останавливаем звуки и анимацию
+        this.stop();
+        
+        // Завершаем сессию
+        if (this.session) {
+            this.session.end(false); // false = не нажал "все еще не сплю"
+        }
+        
+        // Переходим на страницу Still Awake
+        if (window.app) {
+            window.app.showScreen('still-awake-screen');
+            window.app.startStillAwakeTimer();
+        }
+        
+        console.log('Сессия завершена автоматически');
     }
 }

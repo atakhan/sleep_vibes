@@ -270,6 +270,38 @@ input[type="range"]::-moz-range-thumb {
     transform: translateX(-50%) translateY(-2px);
 }
 
+/* Ненавязчивая кнопка в центре экрана сессии */
+.session-center-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.5em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    z-index: 50;
+    opacity: 0.5;
+}
+
+.session-center-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.session-center-btn:active {
+    transform: translate(-50%, -50%) scale(0.95);
+}
+
 /* Анимация удара для синхронизации с ритмом */
 .beat-pulse {
     animation: beatPulse 0.2s ease-out;

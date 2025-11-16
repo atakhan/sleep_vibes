@@ -10,13 +10,12 @@ class Session {
         this.endTime = null;
         
         // Длина сессии зависит от температуры
-        // Чем меньше температура, тем длиннее сессия
-        // Формула: базовое время * (1 - temperature/200)
-        // При temp=0: 10 минут, при temp=100: 5 минут
-        const baseDuration = 10 * 60 * 1000; // 10 минут в миллисекундах
-        const minDuration = 5 * 60 * 1000; // 5 минут минимум
-        const durationFactor = 1 - (temperature / 200);
-        this.duration = Math.max(minDuration, baseDuration * durationFactor);
+        // Чем выше температура, тем длиннее сессия
+        // При temp=0: 10 секунд, при temp=100: 100 секунд
+        const minDuration = 10 * 1000; // 10 секунд минимум
+        const maxDuration = 100 * 1000; // 100 секунд максимум
+        const durationFactor = temperature / 100; // от 0.0 до 1.0
+        this.duration = minDuration + (maxDuration - minDuration) * durationFactor;
         
         // Базовый ритм: 65 ударов в минуту
         this.baseBPM = 65;

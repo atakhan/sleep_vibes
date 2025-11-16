@@ -6,6 +6,7 @@ class App {
         this.currentSound = 1;
         this.currentAnimation = 1;
         this.stillAwakeCount = 0;
+        this.stillAwakeTimerInterval = null;
         
         // Инициализируем список звуков
         this.maxSoundId = SoundSources.getAllSounds().length;
@@ -54,11 +55,6 @@ class App {
         // StillAwakeScreen
         document.getElementById('still-awake-btn').addEventListener('click', () => {
             this.handleStillAwake();
-        });
-
-        // TryAgainScreen
-        document.getElementById('try-again-btn').addEventListener('click', () => {
-            this.tryAgain();
         });
 
         // SessionScreen -> StillAwakeScreen
@@ -125,9 +121,9 @@ class App {
         document.getElementById(screenId).classList.add('active');
         this.currentScreen = screenId;
         
-        // Автоматически запускаем таймер при показе TryAgainScreen
-        if (screenId === 'try-again-screen') {
-            this.startTimer();
+        // Автоматически запускаем таймер при показе StillAwakeScreen
+        if (screenId === 'still-awake-screen') {
+            this.startStillAwakeTimer();
         }
     }
 
@@ -165,39 +161,50 @@ class App {
         }
 
         SessionScreen.stop();
-        this.showScreen('try-again-screen');
-    }
-
-    tryAgain() {
-        this.showScreen('start-sleep-screen');
-    }
-
-    startTimer() {
-        // Очищаем предыдущий таймер, если он был
-        if (this.timerInterval) {
-            clearInterval(this.timerInterval);
+        
+        // Останавливаем таймер Still Awake, если он запущен
+        if (this.stillAwakeTimerInterval) {
+            clearInterval(this.stillAwakeTimerInterval);
+            this.stillAwakeTimerInterval = null;
         }
         
-        let timeLeft = 20;
-        const timerElement = document.getElementById('timer');
-        timerElement.textContent = timeLeft;
-
-        this.timerInterval = setInterval(() => {
-            timeLeft--;
+        // Сразу переходим на страницу start sleep
+        this.showScreen('start-sleep-screen');
+    }
+    
+    startStillAwakeTimer() {
+        // Очищаем предыдущий таймер, если он был
+        if (this.stillAwakeTimerInterval) {
+            clearInterval(this.stillAwakeTimerInterval);
+        }
+        
+        let timeLeft = 15;
+        const timerElement = document.getElementById('still-awake-timer');
+        if (timerElement) {
             timerElement.textContent = timeLeft;
-
+        }
+        
+        this.stillAwakeTimerInterval = setInterval(() => {
+            timeLeft--;
+            if (timerElement) {
+                timerElement.textContent = timeLeft;
+            }
+            
             if (timeLeft <= 0) {
-                clearInterval(this.timerInterval);
-                this.timerInterval = null;
+                clearInterval(this.stillAwakeTimerInterval);
+                this.stillAwakeTimerInterval = null;
                 this.showScreen('start-sleep-screen');
             }
         }, 1000);
     }
+
 }
 
 // Инициализация приложения
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new App();
+    // Делаем app доступным глобально для SessionScreen
+    window.app = app;
 });
 

@@ -14,44 +14,51 @@ class AnimationGenerator {
 
         switch (type) {
             case 1:
-                return this.generateWaves(container, colorHue, speed, intensity);
+                return this.generatePulsingCircle(container, colorHue, speed, intensity);
             case 2:
                 return this.generateParticles(container, colorHue, speed, intensity);
             case 3:
                 return this.generateGradient(container, colorHue, speed, intensity);
             default:
-                return this.generateWaves(container, colorHue, speed, intensity);
+                return this.generatePulsingCircle(container, colorHue, speed, intensity);
         }
     }
 
-    static generateWaves(container, hue, speed, intensity) {
-        const waveCount = 3 + Math.floor(intensity * 5);
+    static generatePulsingCircle(container, hue, speed, intensity) {
+        // Создаем основную окружность
+        const circle = document.createElement('div');
+        const baseSize = 200 + intensity * 300; // Размер от 200px до 500px
         
-        for (let i = 0; i < waveCount; i++) {
-            const wave = document.createElement('div');
-            wave.style.position = 'absolute';
-            wave.style.width = '200%';
-            wave.style.height = '100px';
-            wave.style.background = `linear-gradient(90deg, 
-                hsla(${hue + i * 30}, 70%, 50%, ${0.3 + intensity * 0.3}), 
-                hsla(${hue + i * 30 + 60}, 70%, 50%, ${0.2 + intensity * 0.2}))`;
-            wave.style.borderRadius = '50%';
-            wave.style.top = `${20 + i * 15}%`;
-            wave.style.left = '-50%';
-            wave.style.animation = `wave ${2 + speed * 2}s ease-in-out infinite`;
-            wave.style.animationDelay = `${i * 0.3}s`;
-            
-            container.appendChild(wave);
-        }
+        circle.style.position = 'absolute';
+        circle.style.width = `${baseSize}px`;
+        circle.style.height = `${baseSize}px`;
+        circle.style.borderRadius = '50%';
+        circle.style.background = `radial-gradient(circle, 
+            hsla(${hue}, 70%, 60%, ${0.6 + intensity * 0.4}), 
+            hsla(${hue + 30}, 70%, 40%, ${0.4 + intensity * 0.3}))`;
+        circle.style.boxShadow = `0 0 ${50 + intensity * 100}px hsla(${hue}, 70%, 50%, ${0.5 + intensity * 0.3})`;
+        circle.style.top = '50%';
+        circle.style.left = '50%';
+        circle.style.transform = 'translate(-50%, -50%)';
+        circle.style.animation = `circlePulse ${3 + speed * 2}s ease-in-out infinite`;
+        circle.id = 'pulsing-circle';
+        
+        container.appendChild(circle);
 
-        // Добавляем CSS анимацию
-        if (!document.getElementById('wave-animation-style')) {
+        // Добавляем CSS анимацию для базовой пульсации
+        if (!document.getElementById('circle-pulse-animation-style')) {
             const style = document.createElement('style');
-            style.id = 'wave-animation-style';
+            style.id = 'circle-pulse-animation-style';
             style.textContent = `
-                @keyframes wave {
-                    0%, 100% { transform: translateX(0) scaleY(1); }
-                    50% { transform: translateX(25%) scaleY(1.2); }
+                @keyframes circlePulse {
+                    0%, 100% {
+                        transform: translate(-50%, -50%) scale(1);
+                        opacity: 0.8;
+                    }
+                    50% {
+                        transform: translate(-50%, -50%) scale(1.1);
+                        opacity: 1;
+                    }
                 }
             `;
             document.head.appendChild(style);
@@ -63,35 +70,85 @@ class AnimationGenerator {
     static generateParticles(container, hue, speed, intensity) {
         const particleCount = 20 + Math.floor(intensity * 50);
         
+        // Сохраняем данные о частицах для пульсации
+        const particlesData = [];
+        
         for (let i = 0; i < particleCount; i++) {
+            // Создаем wrapper для комбинирования анимаций
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'absolute';
+            const x = Math.random() * 100; // Процент от 0 до 100
+            const y = Math.random() * 100; // Процент от 0 до 100
+            wrapper.style.left = `${x}%`;
+            wrapper.style.top = `${y}%`;
+            wrapper.classList.add('particle-wrapper');
+            
             const particle = document.createElement('div');
             const size = 5 + Math.random() * 15;
-            const x = Math.random() * 100;
-            const y = Math.random() * 100;
             const delay = Math.random() * 2;
             
-            particle.style.position = 'absolute';
+            // Вычисляем направление от центра (50%, 50%)
+            const centerX = 50;
+            const centerY = 50;
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const directionX = distance > 0 ? dx / distance : 0;
+            const directionY = distance > 0 ? dy / distance : 0;
+            
+            particle.style.position = 'relative';
             particle.style.width = `${size}px`;
             particle.style.height = `${size}px`;
             particle.style.background = `hsla(${hue + i * 10}, 70%, 60%, ${0.6 + intensity * 0.4})`;
             particle.style.borderRadius = '50%';
-            particle.style.left = `${x}%`;
-            particle.style.top = `${y}%`;
-            particle.style.animation = `float ${3 + speed * 2}s ease-in-out infinite`;
+            const floatDuration = 3 + speed * 2;
+            particle.style.animation = `float ${floatDuration}s ease-in-out infinite`;
             particle.style.animationDelay = `${delay}s`;
+            particle.classList.add('particle');
             
-            container.appendChild(particle);
+            // Сохраняем направление пульсации в CSS переменных wrapper
+            wrapper.style.setProperty('--pulse-dir-x', directionX);
+            wrapper.style.setProperty('--pulse-dir-y', directionY);
+            
+            wrapper.appendChild(particle);
+            container.appendChild(wrapper);
+            
+            // Сохраняем данные для пульсации (используем wrapper для пульсации)
+            particlesData.push({
+                element: wrapper, // Используем wrapper для пульсации
+                particleElement: particle, // Сохраняем ссылку на сам particle
+                originalX: x,
+                originalY: y,
+                directionX: directionX,
+                directionY: directionY,
+                distance: distance
+            });
         }
+
+        // Сохраняем данные частиц в контейнере для доступа при пульсе
+        container._particlesData = particlesData;
 
         if (!document.getElementById('float-animation-style')) {
             const style = document.createElement('style');
             style.id = 'float-animation-style';
             style.textContent = `
                 @keyframes float {
-                    0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
-                    25% { transform: translate(20px, -20px) scale(1.2); opacity: 1; }
-                    50% { transform: translate(-10px, -40px) scale(0.8); opacity: 0.8; }
-                    75% { transform: translate(-20px, -20px) scale(1.1); opacity: 1; }
+                    0%, 100% { 
+                        transform: translate(0, 0) scale(1); 
+                        opacity: 0.6; 
+                    }
+                    25% { 
+                        transform: translate(20px, -20px) scale(1.2); 
+                        opacity: 1; 
+                    }
+                    50% { 
+                        transform: translate(-10px, -40px) scale(0.8); 
+                        opacity: 0.8; 
+                    }
+                    75% { 
+                        transform: translate(-20px, -20px) scale(1.1); 
+                        opacity: 1; 
+                    }
                 }
             `;
             document.head.appendChild(style);

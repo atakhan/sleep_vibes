@@ -1,61 +1,97 @@
 // Управление экранами
 class SessionScreen {
+    // Константы для обновления UI
+    static UPDATE_INTERVAL = 1000; // миллисекунды
+    
+    // Константы для завершения сессии
+    static FADE_OUT_DELAY = 1000; // миллисекунды
+    static FADE_OUT_DURATION = 4000; // миллисекунды
+    static TOTAL_FADE_OUT_TIME = 5000; // миллисекунды
+    static BLACK_BACKGROUND = '#000';
+    
     static session = null;
-    static animationId = null;
-    static audioContext = null;
-    static gainNode = null;
-    static audioElement = null;
-    static scriptProcessor = null;
-    static ambientGainNode = null;
-    static beatOscillator = null;
-    static beatGainNode = null;
-    static animationElement = null;
-    static beatIntervalId = null;
     static updateIntervalId = null;
+    
+    // Компоненты
+    static audioManager = null;
+    static beatPlayer = null;
+    static ambientPlayer = null;
+    static animationController = null;
 
     static start(temperature, soundId, animationType, tryCount = 0) {
+        // Останавливаем предыдущую сессию, если она была (только если компоненты существуют)
+        if (this.updateIntervalId || this.beatPlayer || this.ambientPlayer || this.animationController) {
+            this.stop();
+        }
+        
         // Создаем новую сессию
         this.session = new Session(temperature, soundId, animationType, tryCount);
         
-        const container = document.getElementById('animation-container');
-        container.innerHTML = '';
+        // Устанавливаем фон на основе температуры (соответствует фону на start-sleep-screen)
+        // Прогресс = 0, так как сессия только началась
+        this.updateBackground(temperature, 0);
+        
+        // Инициализируем компоненты
+        this.audioManager = new AudioManager();
+        this.audioManager.init();
+        
+        this.beatPlayer = new BeatPlayer(this.audioManager);
+        this.ambientPlayer = new AmbientPlayer(this.audioManager);
+        this.animationController = new AnimationController();
         
         // Скрываем кнопку "Все еще не сплю" в начале сессии
-        const stillAwakeBtn = document.getElementById('session-to-still-awake-btn');
-        if (stillAwakeBtn) {
-            stillAwakeBtn.style.display = 'none';
+        this._hideStillAwakeButton();
+        
+        // Очищаем контейнер анимации перед созданием новой
+        const container = document.getElementById('animation-container');
+        if (container) {
+            container.innerHTML = '';
         }
         
         // Генерируем анимацию
-        const animation = AnimationGenerator.generate(animationType, temperature);
-        this.animationElement = animation.element;
-        container.appendChild(this.animationElement);
+        this.animationController.create(animationType, temperature);
         
-        // Инициализируем аудио контекст
-        this.initAudioContext();
-        
-        // Запускаем фоновый эмбиент (тихий, непрерывный)
-        this.startAmbientSound(temperature);
-        
-        // Запускаем ритмичный звук и анимацию (основной ритм)
-        this.startRhythmicSession();
+        // Загружаем звук пульса и запускаем сессию
+        this.beatPlayer.loadBeatSound(animationType).then(() => {
+            // Запускаем фоновый эмбиент
+            this.ambientPlayer.start(soundId, temperature);
+            this.ambientPlayer.setSession(this.session);
+            
+            // Запускаем ритмичный звук и анимацию
+            this.beatPlayer.start(this.session, () => {
+                this.beatPlayer.playBeat(this.session);
+                this.animationController.triggerBeat();
+            });
+        }).catch(() => {
+            // Даже если загрузка не удалась, продолжаем с fallback
+            this.ambientPlayer.start(soundId, temperature);
+            this.ambientPlayer.setSession(this.session);
+            
+            this.beatPlayer.start(this.session, () => {
+                this.beatPlayer.playBeat(this.session);
+                this.animationController.triggerBeat();
+            });
+        });
         
         // Обновляем информацию о сессии сразу и затем каждую секунду
-        // Используем requestAnimationFrame для гарантии, что DOM готов
         requestAnimationFrame(() => {
             this.updateSessionInfo();
         });
         
         this.updateIntervalId = setInterval(() => {
             if (!this.session) return;
+            
             this.session.updateProgress();
             this.updateSessionInfo();
+            
+            // Обновляем громкость URL ambient, если он воспроизводится
+            this.ambientPlayer.updateVolume(this.session);
             
             // Автоматически завершаем сессию, если время истекло
             if (this.session.isFinished()) {
                 this.handleSessionEnd();
             }
-        }, 1000);
+        }, SessionScreen.UPDATE_INTERVAL);
     }
 
     static stop() {
@@ -65,255 +101,37 @@ class SessionScreen {
             this.updateIntervalId = null;
         }
         
-        if (this.beatIntervalId) {
-            clearTimeout(this.beatIntervalId);
-            this.beatIntervalId = null;
+        // Останавливаем компоненты
+        if (this.beatPlayer) {
+            this.beatPlayer.stop();
+            this.beatPlayer = null;
         }
         
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
+        if (this.ambientPlayer) {
+            this.ambientPlayer.stop();
+            this.ambientPlayer = null;
         }
         
-        // Останавливаем ритмичный звук
-        if (this.beatOscillator) {
-            this.beatOscillator.stop();
-            this.beatOscillator = null;
+        if (this.audioManager) {
+            this.audioManager.close();
+            this.audioManager = null;
         }
         
-        if (this.beatGainNode) {
-            this.beatGainNode.disconnect();
-            this.beatGainNode = null;
-        }
-        
-        // Останавливаем процедурный звук
-        if (this.scriptProcessor) {
-            this.scriptProcessor.disconnect();
-            this.scriptProcessor = null;
-        }
-        
-        if (this.ambientGainNode) {
-            this.ambientGainNode.disconnect();
-            this.ambientGainNode = null;
-        }
-        
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
-        }
-
-        // Останавливаем аудио элемент
-        if (this.audioElement) {
-            this.audioElement.pause();
-            this.audioElement.currentTime = 0;
-            this.audioElement = null;
+        // Очищаем анимацию
+        if (this.animationController) {
+            // Останавливаем все активные анимации
+            this.animationController.stop();
+            // Очищаем контейнер анимации
+            const container = document.getElementById('animation-container');
+            if (container) {
+                container.innerHTML = '';
+            }
+            this.animationController = null;
         }
         
         // Завершаем сессию
         if (this.session) {
             this.session.end();
-        }
-    }
-
-    static initAudioContext() {
-        try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (error) {
-            console.error('Ошибка создания аудио контекста:', error);
-        }
-    }
-
-    static startRhythmicSession() {
-        if (!this.audioContext) {
-            this.initAudioContext();
-        }
-        
-        // Запускаем первый удар с синхронизированной анимацией
-        this.playBeat();
-        this.triggerAnimation();
-        
-        // Запускаем цикл ударов
-        this.scheduleNextBeat();
-    }
-
-    static scheduleNextBeat() {
-        if (!this.session) return;
-        
-        // Обновляем прогресс перед расчетом интервала для учета угасания ритма
-        this.session.updateProgress();
-        const interval = this.session.getCurrentBeatInterval();
-        
-        this.beatIntervalId = setTimeout(() => {
-            this.playBeat();
-            this.triggerAnimation();
-            this.scheduleNextBeat();
-        }, interval);
-    }
-
-    static playBeat() {
-        if (!this.audioContext || !this.session) return;
-        
-        try {
-            // Создаем короткий звук для удара
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
-            
-            // Настройки удара в зависимости от типа звука
-            const sound = SoundSources.getSound(this.session.soundId);
-            let frequency = 200;
-            let duration = 0.1; // Длительность удара
-            
-            if (sound && sound.type === 'procedural') {
-                // Для процедурных звуков используем низкую частоту
-                frequency = 150 + (this.session.temperature * 2);
-            } else {
-                // Для URL звуков используем более высокую частоту
-                frequency = 300;
-            }
-            
-            oscillator.type = 'sine';
-            oscillator.frequency.value = frequency;
-            
-            // Плавное нарастание и затухание удара
-            // Громкость удара также угасает по мере прогресса сессии
-            this.session.updateProgress();
-            const now = this.audioContext.currentTime;
-            const beatVolume = 0.3 * (1 - this.session.progress * 0.7);
-            gainNode.gain.setValueAtTime(0, now);
-            gainNode.gain.linearRampToValueAtTime(beatVolume, now + 0.01);
-            gainNode.gain.linearRampToValueAtTime(0, now + duration);
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
-            
-            oscillator.start(now);
-            oscillator.stop(now + duration);
-            
-            this.beatOscillator = oscillator;
-            this.beatGainNode = gainNode;
-        } catch (error) {
-            console.error('Ошибка воспроизведения удара:', error);
-        }
-    }
-
-    static triggerAnimation() {
-        if (!this.animationElement) return;
-        
-        // Добавляем класс для анимации удара
-        this.animationElement.classList.add('beat-pulse');
-        setTimeout(() => {
-            if (this.animationElement) {
-                this.animationElement.classList.remove('beat-pulse');
-            }
-        }, 200);
-    }
-
-    static startAmbientSound(temperature) {
-        const sound = SoundSources.getSound(this.session.soundId);
-        
-        if (!sound) {
-            console.error('Звук не найден:', this.session.soundId);
-            return;
-        }
-
-        if (sound.type === 'procedural') {
-            this.playProceduralAmbient(this.session.soundId, temperature);
-        } else if (sound.type === 'url') {
-            this.playUrlAmbient(sound.url, temperature);
-        }
-    }
-
-    static playProceduralAmbient(soundId, temperature) {
-        try {
-            if (!this.audioContext) {
-                this.initAudioContext();
-            }
-            
-            const audioData = SoundGenerator.generate(soundId, temperature);
-            
-            if (!audioData) {
-                console.error('Не удалось сгенерировать звук');
-                return;
-            }
-
-            const bufferSize = 4096;
-            this.scriptProcessor = this.audioContext.createScriptProcessor(bufferSize, 0, 1);
-            this.ambientGainNode = this.audioContext.createGain();
-
-            let bufferIndex = 0;
-            this.scriptProcessor.onaudioprocess = (e) => {
-                const output = e.outputBuffer.getChannelData(0);
-                
-                for (let i = 0; i < bufferSize; i++) {
-                    let sample;
-                    switch (audioData.type) {
-                        case 'whiteNoise':
-                            sample = Math.random() * 2 - 1;
-                            break;
-                        case 'pinkNoise':
-                            const white = Math.random() * 2 - 1;
-                            sample = white * 0.5 + (Math.random() * 2 - 1) * 0.3;
-                            break;
-                        case 'brownNoise':
-                            const white2 = Math.random() * 2 - 1;
-                            const lastSample = bufferIndex > 0 ? output[bufferIndex - 1] : 0;
-                            sample = lastSample * 0.98 + white2 * 0.02;
-                            break;
-                        default:
-                            sample = Math.random() * 2 - 1;
-                    }
-                    
-                    // Уменьшаем громкость эмбиента по мере прогресса сессии
-                    // Эмбиент должен быть тихим фоновым звуком
-                    // Обновляем прогресс периодически (не каждый сэмпл для производительности)
-                    if (i % 100 === 0 && this.session) {
-                        this.session.updateProgress();
-                    }
-                    const currentProgress = this.session ? this.session.progress : 0;
-                    const ambientVolume = audioData.volume * 0.3 * (1 - currentProgress * 0.5);
-                    output[i] = sample * ambientVolume;
-                    bufferIndex = (bufferIndex + 1) % bufferSize;
-                }
-            };
-
-            this.ambientGainNode.gain.value = 0;
-            this.ambientGainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-            this.ambientGainNode.gain.linearRampToValueAtTime(audioData.volume * 0.5, this.audioContext.currentTime + 1);
-
-            this.scriptProcessor.connect(this.ambientGainNode);
-            this.ambientGainNode.connect(this.audioContext.destination);
-        } catch (error) {
-            console.error('Ошибка воспроизведения процедурного эмбиента:', error);
-        }
-    }
-
-    static playUrlAmbient(url, temperature) {
-        try {
-            const volume = (0.1 + (temperature / 100) * 0.2) * 0.5; // Эмбиент тише
-            
-            this.audioElement = document.getElementById('audio-player');
-            if (!this.audioElement) {
-                this.audioElement = new Audio();
-                this.audioElement.loop = true;
-            }
-
-            this.audioElement.src = url;
-            this.audioElement.volume = volume;
-            
-            this.audioElement.volume = 0;
-            this.audioElement.play().then(() => {
-                const fadeIn = setInterval(() => {
-                    if (this.audioElement.volume < volume) {
-                        this.audioElement.volume = Math.min(this.audioElement.volume + 0.01, volume);
-                    } else {
-                        clearInterval(fadeIn);
-                    }
-                }, 50);
-            }).catch(error => {
-                console.error('Ошибка воспроизведения URL эмбиента:', error);
-            });
-        } catch (error) {
-            console.error('Ошибка загрузки эмбиента:', error);
         }
     }
 
@@ -351,10 +169,13 @@ class SessionScreen {
         
         this.session.updateProgress();
         
+        // Обновляем фон с учетом прогресса сессии (постепенное затемнение)
+        this.updateBackground(this.session.temperature, this.session.progress);
+        
         try {
             tempEl.textContent = this.session.temperature;
             soundEl.textContent = SoundSources.getSoundName(this.session.soundId);
-            animEl.textContent = `Анимация ${this.session.animationType}`;
+            animEl.textContent = SessionScreen.getAnimationName(this.session.animationType);
             tryEl.textContent = this.session.tryCount;
             
             const remaining = this.session.getRemainingTime();
@@ -371,20 +192,129 @@ class SessionScreen {
 
     static handleSessionEnd() {
         // Сессия завершена автоматически
-        // Останавливаем звуки и анимацию
-        this.stop();
         
-        // Завершаем сессию
-        if (this.session) {
-            this.session.end(false); // false = не нажал "все еще не сплю"
+        // Сразу останавливаем ритмичную сессию
+        if (this.beatPlayer) {
+            this.beatPlayer.stop();
         }
         
-        // Переходим на страницу Still Awake
-        if (window.app) {
-            window.app.showScreen('still-awake-screen');
-            window.app.startStillAwakeTimer();
+        // Делаем последний пульс
+        if (this.beatPlayer && this.session) {
+            this.beatPlayer.playBeat(this.session);
         }
+        if (this.animationController) {
+            this.animationController.triggerBeat();
+        }
+        
+        // Останавливаем анимацию пульсации шара
+        if (this.animationController) {
+            this.animationController.stopPulsation();
+        }
+        
+        // Запускаем специальную конечную анимацию - плавное угасание всех визуальных элементов
+        if (this.animationController) {
+            this.animationController.startFadeOut();
+        }
+        
+        // Начинаем fade out экрана
+        const sessionScreen = document.getElementById('session-screen');
+        if (sessionScreen) {
+            // Устанавливаем черный фон для плавного перехода
+            document.body.style.background = SessionScreen.BLACK_BACKGROUND;
+            // Задержка, чтобы элементы начали угасать первыми
+            setTimeout(() => {
+                sessionScreen.style.transition = `opacity ${SessionScreen.FADE_OUT_DURATION / 1000}s ease-out`;
+                sessionScreen.style.opacity = '0';
+            }, SessionScreen.FADE_OUT_DELAY);
+        }
+        
+        // Останавливаем все звуки и анимацию через задержку
+        // (чтобы последний пульс и fade out успели завершиться)
+        setTimeout(() => {
+            this.stop();
+            
+            // Завершаем сессию
+            if (this.session) {
+                this.session.end(false); // false = не нажал "все еще не сплю"
+            }
+            
+            // Переходим на страницу Still Awake после fade out
+            if (window.app) {
+                window.app.showScreen('still-awake-screen');
+            }
+        }, SessionScreen.TOTAL_FADE_OUT_TIME);
         
         console.log('Сессия завершена автоматически');
+    }
+
+    static _hideStillAwakeButton() {
+        const stillAwakeBtn = document.getElementById('session-to-still-awake-btn');
+        if (stillAwakeBtn) {
+            stillAwakeBtn.style.display = 'none';
+        }
+    }
+
+    static getAnimationName(animationType) {
+        switch (animationType) {
+            case 1:
+                return 'Пульсирующий шар';
+            case 2:
+                return 'Частицы';
+            case 3:
+                return `Анимация ${animationType}`;
+            default:
+                return `Анимация ${animationType}`;
+        }
+    }
+
+    static updateBackground(temperature, progress = 0) {
+        // Температура от 0 (холодные) до 100 (теплые)
+        // Холодные: синие, голубые, фиолетовые (hue ~200-270)
+        // Теплые: красные, оранжевые, желтые (hue ~0-60)
+        // Темная тема: низкая яркость (lightness)
+        // progress: 0.0 (начало) - 1.0 (конец, черный фон)
+        // Использует ту же логику, что и App.updateBackground(), но с постепенным затемнением
+        
+        const temp = temperature / 100; // 0.0 - 1.0
+        
+        // Интерполяция между холодными и теплыми оттенками
+        // Холодные: от синего (240) к фиолетовому (270)
+        // Теплые: от красного (0/360) к оранжевому (30)
+        
+        let hue1, hue2;
+        
+        if (temp <= 0.5) {
+            // От холодных к нейтральным (синий -> фиолетовый -> пурпурный)
+            const coldProgress = temp * 2; // 0.0 - 1.0
+            hue1 = 240 - (coldProgress * 60); // 240 -> 180 (синий -> голубой)
+            hue2 = 270 - (coldProgress * 60); // 270 -> 210 (фиолетовый -> синий)
+        } else {
+            // От нейтральных к теплым (пурпурный -> красный -> оранжевый)
+            const warmProgress = (temp - 0.5) * 2; // 0.0 - 1.0
+            hue1 = 180 - (warmProgress * 180); // 180 -> 0 (голубой -> красный)
+            hue2 = 210 - (warmProgress * 180); // 210 -> 30 (синий -> оранжевый)
+        }
+        
+        // Темная тема: низкая яркость, умеренная насыщенность
+        // Насыщенность: 50-70% (достаточно для различимости, но не слишком ярко)
+        const baseSaturation = 50 + (temp * 20); // 50-70%
+        // Яркость: 8-20% (темные цвета)
+        const baseLightness1 = 8 + (temp * 12); // 8-20%
+        const baseLightness2 = 5 + (temp * 15); // 5-20%
+        
+        // Интерполируем к черному на основе прогресса
+        // progress = 0: исходные цвета, progress = 1: черный
+        const saturation = baseSaturation * (1 - progress);
+        const lightness1 = baseLightness1 * (1 - progress);
+        const lightness2 = baseLightness2 * (1 - progress);
+        
+        // Если прогресс близок к 1, используем черный цвет
+        if (progress >= 0.99) {
+            document.body.style.background = '#000';
+        } else {
+            const color1 = `hsl(${hue1}, ${saturation}%, ${lightness1}%)`;
+            const color2 = `hsl(${hue2}, ${saturation}%, ${lightness2}%)`;
+            document.body.style.background = `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`;
+        }
     }
 }

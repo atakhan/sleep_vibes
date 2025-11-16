@@ -12,13 +12,13 @@ class Session {
         // Длина сессии зависит от температуры
         // Чем выше температура, тем длиннее сессия
         // При temp=0: 10 секунд, при temp=100: 100 секунд
-        const minDuration = 10 * 1000; // 10 секунд минимум
+        const minDuration = 5 * 1000; // 10 секунд минимум
         const maxDuration = 100 * 1000; // 100 секунд максимум
         const durationFactor = temperature / 100; // от 0.0 до 1.0
         this.duration = minDuration + (maxDuration - minDuration) * durationFactor;
         
-        // Базовый ритм: 65 ударов в минуту
-        this.baseBPM = 65;
+        // Базовый ритм: 55 ударов в минуту
+        this.baseBPM = 55;
         this.currentBPM = this.baseBPM;
         
         // Интервал между ударами в миллисекундах
@@ -34,8 +34,8 @@ class Session {
     // Получить текущий BPM с учетом угасания
     getCurrentBPM() {
         // Используем экспоненциальную функцию для плавного угасания
-        // BPM угасает от 65 до 40 BPM за время сессии
-        const minBPM = 40;
+        // BPM угасает от 55 до 30 BPM за время сессии
+        const minBPM = 30;
         const bpmRange = this.baseBPM - minBPM;
         
         // Экспоненциальное угасание: более быстрое в начале, медленное в конце

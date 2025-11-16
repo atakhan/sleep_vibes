@@ -1,5 +1,8 @@
 // Главный файл приложения
 class App {
+    // Константы для анимаций
+    static FADE_IN_DURATION = 4000; // миллисекунды (4 секунды)
+    
     constructor() {
         this.currentScreen = 'start-sleep-screen';
         this.temperature = 50;
@@ -10,6 +13,9 @@ class App {
         
         // Инициализируем список звуков
         this.maxSoundId = SoundSources.getAllSounds().length;
+        
+        // Менеджер предпросмотра
+        this.previewManager = new PreviewManager();
         
         this.init();
     }
@@ -30,6 +36,10 @@ class App {
             this.temperature = parseInt(e.target.value);
             document.getElementById('temperature-value').textContent = this.temperature;
             this.updateBackground();
+            // Обновляем предпросмотр при изменении температуры
+            if (this.currentScreen === 'start-sleep-screen') {
+                this.previewManager.update(this.temperature, this.currentSound, this.currentAnimation);
+            }
         });
 
         document.getElementById('sound-prev').addEventListener('click', () => {
@@ -67,17 +77,40 @@ class App {
         // TODO: Заглушка - данные должны приходить с сервера
         const soundName = SoundSources.getSoundName(this.currentSound);
         document.getElementById('current-sound').textContent = soundName;
+        // Обновляем предпросмотр при изменении звука
+        if (this.currentScreen === 'start-sleep-screen') {
+            this.previewManager.update(this.temperature, this.currentSound, this.currentAnimation);
+        }
     }
 
     updateAnimationDisplay() {
         // TODO: Заглушка - данные должны приходить с сервера
-        document.getElementById('current-animation').textContent = `Анимация ${this.currentAnimation}`;
+        const animationName = this.getAnimationName(this.currentAnimation);
+        document.getElementById('current-animation').textContent = animationName;
+        // Обновляем предпросмотр при изменении анимации
+        if (this.currentScreen === 'start-sleep-screen') {
+            this.previewManager.update(this.temperature, this.currentSound, this.currentAnimation);
+        }
+    }
+
+    getAnimationName(animationType) {
+        switch (animationType) {
+            case 1:
+                return 'Пульсирующий шар';
+            case 2:
+                return 'Частицы';
+            case 3:
+                return `Анимация ${animationType}`;
+            default:
+                return `Анимация ${animationType}`;
+        }
     }
 
     updateBackground() {
         // Температура от 0 (холодные) до 100 (теплые)
         // Холодные: синие, голубые, фиолетовые (hue ~200-270)
         // Теплые: красные, оранжевые, желтые (hue ~0-60)
+        // Темная тема: низкая яркость (lightness)
         
         const temp = this.temperature / 100; // 0.0 - 1.0
         
@@ -103,10 +136,12 @@ class App {
             hue2 = 210 - (warmProgress * 180); // 210 -> 30 (синий -> оранжевый)
         }
         
-        // Насыщенность и яркость для более плавного перехода
-        const saturation = 60 + (temp * 20); // 60-80%
-        const lightness1 = 40 + (temp * 10); // 40-50%
-        const lightness2 = 30 + (temp * 15); // 30-45%
+        // Темная тема: низкая яркость, умеренная насыщенность
+        // Насыщенность: 50-70% (достаточно для различимости, но не слишком ярко)
+        const saturation = 50 + (temp * 20); // 50-70%
+        // Яркость: 8-20% (темные цвета)
+        const lightness1 = 8 + (temp * 12); // 8-20%
+        const lightness2 = 5 + (temp * 15); // 5-20%
         
         const color1 = `hsl(${hue1}, ${saturation}%, ${lightness1}%)`;
         const color2 = `hsl(${hue2}, ${saturation}%, ${lightness2}%)`;
@@ -117,14 +152,64 @@ class App {
     showScreen(screenId) {
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
+            screen.style.opacity = '0'; // Сбрасываем opacity для fade in
         });
-        document.getElementById(screenId).classList.add('active');
-        this.currentScreen = screenId;
         
-        // Автоматически запускаем таймер при показе StillAwakeScreen
-        if (screenId === 'still-awake-screen') {
-            this.startStillAwakeTimer();
+        const targetScreen = document.getElementById(screenId);
+        if (targetScreen) {
+            targetScreen.classList.add('active');
+            
+            // Fade in для still-awake-screen
+            if (screenId === 'still-awake-screen') {
+                const fadeInDuration = App.FADE_IN_DURATION / 1000; // в секундах
+                
+                // Начинаем с черного экрана (opacity 0)
+                targetScreen.style.opacity = '0';
+                targetScreen.style.transition = `opacity ${fadeInDuration}s ease-in`;
+                
+                // Находим кнопку "Я не уснул" и скрываем её
+                const stillAwakeBtn = document.getElementById('still-awake-btn');
+                if (stillAwakeBtn) {
+                    stillAwakeBtn.style.opacity = '0';
+                    stillAwakeBtn.style.transition = `opacity ${fadeInDuration}s ease-in`;
+                }
+                
+                // Плавно появляемся экран и кнопка
+                setTimeout(() => {
+                    targetScreen.style.opacity = '1';
+                    
+                    // Плавно появляемся кнопка с небольшой задержкой для синхронизации
+                    if (stillAwakeBtn) {
+                        requestAnimationFrame(() => {
+                            stillAwakeBtn.style.opacity = '1';
+                        });
+                    }
+                }, 10);
+            } else {
+                // Для других экранов просто показываем
+                targetScreen.style.opacity = '1';
+                targetScreen.style.transition = '';
+                
+                // Сбрасываем opacity кнопки, если она была скрыта
+                const stillAwakeBtn = document.getElementById('still-awake-btn');
+                if (stillAwakeBtn) {
+                    stillAwakeBtn.style.opacity = '1';
+                    stillAwakeBtn.style.transition = '';
+                }
+                
+                // Восстанавливаем фон и запускаем предпросмотр для start-sleep-screen
+                if (screenId === 'start-sleep-screen') {
+                    this.updateBackground();
+                    // Запускаем предпросмотр анимации и звуков
+                    this.previewManager.start(this.temperature, this.currentSound, this.currentAnimation);
+                } else {
+                    // Останавливаем предпросмотр при переходе на другой экран
+                    this.previewManager.stop();
+                }
+            }
         }
+        
+        this.currentScreen = screenId;
     }
 
     startSleep() {
@@ -138,6 +223,9 @@ class App {
         //         try_count: this.stillAwakeCount
         //     })
         // });
+
+        // Останавливаем предпросмотр перед переходом на сессию
+        this.previewManager.stop();
 
         this.showScreen('session-screen');
         // Небольшая задержка для гарантии, что экран активирован в DOM
@@ -162,13 +250,10 @@ class App {
 
         SessionScreen.stop();
         
-        // Останавливаем таймер Still Awake, если он запущен
-        if (this.stillAwakeTimerInterval) {
-            clearInterval(this.stillAwakeTimerInterval);
-            this.stillAwakeTimerInterval = null;
-        }
+        // Восстанавливаем фон перед переходом
+        this.updateBackground();
         
-        // Сразу переходим на страницу start sleep
+        // Переходим на страницу start sleep
         this.showScreen('start-sleep-screen');
     }
     

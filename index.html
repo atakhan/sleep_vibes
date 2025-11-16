@@ -9,6 +9,7 @@
 <body>
     <!-- StartSleepScreen -->
     <div id="start-sleep-screen" class="screen active">
+        <div id="start-sleep-animation-container" class="start-sleep-animation-container"></div>
         <button id="start-sleep-btn" class="start-sleep-btn">
             <span>Start</span>
             <span>Sleep</span>
@@ -33,7 +34,7 @@
                 <label>Анимация:</label>
                 <div class="switch-container">
                     <button class="switch-btn" id="animation-prev">←</button>
-                    <span id="current-animation" class="switch-value">Анимация 1</span>
+                    <span id="current-animation" class="switch-value">Пульсирующий шар</span>
                     <button class="switch-btn" id="animation-next">→</button>
                 </div>
             </div>
@@ -70,25 +71,25 @@
         </div>
         <div id="animation-container"></div>
         <audio id="audio-player" loop></audio>
-        <button id="session-center-btn" class="session-center-btn">⏸</button>
         <button id="session-to-still-awake-btn" class="session-btn" style="display: none;">Все еще не сплю</button>
     </div>
 
     <!-- StillAwakeScreen -->
     <div id="still-awake-screen" class="screen">
-        <div class="container">
-            <h1>Вы все еще не спите?</h1>
-            <div class="timer-container">
-                <div id="still-awake-timer">15</div>
-                <p>секунд до следующей попытки</p>
-            </div>
-            <button id="still-awake-btn" class="primary-btn">Да, все еще не сплю</button>
-        </div>
+        <button id="still-awake-btn" class="still-awake-btn">
+            <span>Я не</span>
+            <span>уснул</span>
+        </button>
     </div>
 
     <script src="js/sound-sources.js"></script>
     <script src="js/session.js"></script>
     <script src="js/generator.js"></script>
+    <script src="js/audio-manager.js"></script>
+    <script src="js/beat-player.js"></script>
+    <script src="js/ambient-player.js"></script>
+    <script src="js/animation-controller.js"></script>
+    <script src="js/preview-manager.js"></script>
     <script src="js/screens.js"></script>
     <script src="js/app.js"></script>
 </body>

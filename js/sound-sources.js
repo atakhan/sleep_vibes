@@ -22,25 +22,9 @@ class SoundSources {
         },
         {
             id: 4,
-            name: 'Дождь',
+            name: 'Фонтан',
             type: 'url',
-            // TODO: Замените на реальный URL звука дождя
-            // Примеры источников: freesound.org, pixabay.com, или локальные файлы
-            url: 'sounds/rain.mp3' // или 'https://example.com/sounds/rain.mp3'
-        },
-        {
-            id: 5,
-            name: 'Океан',
-            type: 'url',
-            // TODO: Замените на реальный URL звука океана
-            url: 'sounds/ocean.mp3' // или 'https://example.com/sounds/ocean.mp3'
-        },
-        {
-            id: 6,
-            name: 'Лес',
-            type: 'url',
-            // TODO: Замените на реальный URL звука леса
-            url: 'sounds/forest.mp3' // или 'https://example.com/sounds/forest.mp3'
+            url: 'sounds/fountain.wav'
         }
     ];
 

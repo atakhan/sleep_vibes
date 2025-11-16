@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleep Vibes</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- StartSleepScreen -->
+    <div id="start-sleep-screen" class="screen active">
+        <button id="start-sleep-btn" class="start-sleep-btn">
+            <span>Start</span>
+            <span>Sleep</span>
+        </button>
+        
+        <div class="controls-bottom">
+            <div class="control-group">
+                <label for="temperature-slider">Температура: <span id="temperature-value">50</span></label>
+                <input type="range" id="temperature-slider" min="1" max="100" value="50">
+            </div>
+            
+            <div class="control-group">
+                <label>Звук:</label>
+                <div class="switch-container">
+                    <button class="switch-btn" id="sound-prev">←</button>
+                    <span id="current-sound" class="switch-value">Звук 1</span>
+                    <button class="switch-btn" id="sound-next">→</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>Анимация:</label>
+                <div class="switch-container">
+                    <button class="switch-btn" id="animation-prev">←</button>
+                    <span id="current-animation" class="switch-value">Анимация 1</span>
+                    <button class="switch-btn" id="animation-next">→</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SessionScreen -->
+    <div id="session-screen" class="screen">
+        <div id="session-info" class="session-info">
+            <div class="session-param">
+                <span class="param-label">Температура:</span>
+                <span class="param-value" id="session-temperature">-</span>
+            </div>
+            <div class="session-param">
+                <span class="param-label">Звук:</span>
+                <span class="param-value" id="session-sound">-</span>
+            </div>
+            <div class="session-param">
+                <span class="param-label">Анимация:</span>
+                <span class="param-value" id="session-animation">-</span>
+            </div>
+            <div class="session-param">
+                <span class="param-label">Попытка:</span>
+                <span class="param-value" id="session-try-count">-</span>
+            </div>
+            <div class="session-param">
+                <span class="param-label">Время:</span>
+                <span class="param-value" id="session-time">-</span>
+            </div>
+            <div class="session-param">
+                <span class="param-label">Ритм:</span>
+                <span class="param-value" id="session-bpm">-</span>
+            </div>
+        </div>
+        <div id="animation-container"></div>
+        <audio id="audio-player" loop></audio>
+        <button id="session-to-still-awake-btn" class="session-btn">Все еще не сплю</button>
+    </div>
+
+    <!-- StillAwakeScreen -->
+    <div id="still-awake-screen" class="screen">
+        <div class="container">
+            <h1>Вы все еще не спите?</h1>
+            <button id="still-awake-btn" class="primary-btn">Да, все еще не сплю</button>
+        </div>
+    </div>
+
+    <!-- TryAgainScreen -->
+    <div id="try-again-screen" class="screen">
+        <div class="container">
+            <h1>Попробуйте снова</h1>
+            <div class="timer-container">
+                <div id="timer">20</div>
+                <p>секунд до следующей попытки</p>
+            </div>
+            <button id="try-again-btn" class="primary-btn">Попробовать снова</button>
+        </div>
+    </div>
+
+    <script src="js/sound-sources.js"></script>
+    <script src="js/session.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/screens.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+
